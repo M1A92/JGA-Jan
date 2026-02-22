@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isWeekend, parseISO, getDay } from 'date-fns';
 import Holidays from 'date-holidays';
 import { Calendar as CalIcon, Check, Info, User, Shield, LogOut, ArrowLeft } from 'lucide-react';
@@ -25,7 +25,7 @@ export default function App() {
   const [mode, setMode] = useState<AppMode>('login');
   const [currentUser, setCurrentUser] = useState<Person | null>(null);
   const [people, setPeople] = useState<Person[]>([]);
-  
+
   // Admin Auth
   const [adminPassword, setAdminPassword] = useState('');
   const [passwordError, setPasswordError] = useState(false);
@@ -33,13 +33,13 @@ export default function App() {
   // Data state
   const [personalUnavailability, setPersonalUnavailability] = useState<string[]>([]);
   const [allUnavailability, setAllUnavailability] = useState<Record<string, string[]>>({});
-  
-  const [viewConfig, setViewConfig] = useState<ViewConfig>({ 
-    showHolidays: true, 
-    countries: ['DE', 'LU'], 
-    conflictMode: 'any', 
-    startMonth: 4, 
-    endMonth: 8 
+
+  const [viewConfig, setViewConfig] = useState<ViewConfig>({
+    showHolidays: true,
+    countries: ['DE', 'LU'],
+    conflictMode: 'any',
+    startMonth: 4,
+    endMonth: 8
   });
 
   const [drag, setDrag] = useState<{ start: string | null; end: string | null }>({ start: null, end: null });
@@ -93,10 +93,10 @@ export default function App() {
     if (mode === 'personal' && currentUser) {
       const isUnavailable = personalUnavailability.includes(dateStr);
       // Optimistic update
-      setPersonalUnavailability(prev => 
+      setPersonalUnavailability(prev =>
         isUnavailable ? prev.filter(d => d !== dateStr) : [...prev, dateStr]
       );
-      
+
       // API call
       await fetch(`/api/availability/${currentUser.id}`, {
         method: 'POST',
@@ -123,15 +123,15 @@ export default function App() {
       const start = drag.start < drag.end ? drag.start : drag.end;
       const end = drag.start < drag.end ? drag.end : drag.start;
       const range = eachDayOfInterval({ start: parseISO(start), end: parseISO(end) }).map(d => format(d, 'yyyy-MM-dd'));
-      
+
       // Add all dates in range
       const newDates = range.filter(d => !personalUnavailability.includes(d));
-      
+
       if (newDates.length > 0) {
         setPersonalUnavailability(prev => [...prev, ...newDates]);
-        
+
         // Send requests in parallel (could be optimized to bulk endpoint)
-        await Promise.all(newDates.map(date => 
+        await Promise.all(newDates.map(date =>
           fetch(`/api/availability/${currentUser.id}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -192,7 +192,7 @@ export default function App() {
           </div>
           <h1 className="text-2xl font-bold text-center text-slate-800 mb-2">Admin Access</h1>
           <p className="text-center text-slate-500 mb-6">Please enter the password to continue.</p>
-          
+
           <form onSubmit={handleAdminLogin} className="space-y-4">
             <div>
               <input
@@ -208,15 +208,15 @@ export default function App() {
               />
               {passwordError && <p className="text-red-500 text-xs mt-2 font-medium ml-1">Incorrect password</p>}
             </div>
-            
-            <button 
+
+            <button
               type="submit"
               className="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200"
             >
               Unlock
             </button>
-            
-            <button 
+
+            <button
               type="button"
               onClick={() => {
                 setMode('login');
@@ -244,7 +244,7 @@ export default function App() {
           </div>
           <h1 className="text-2xl font-bold text-center text-slate-800 mb-2">Welcome</h1>
           <p className="text-center text-slate-500 mb-8">Select your name to manage your availability for 2026.</p>
-          
+
           <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
             {people.map(person => (
               <button
@@ -264,7 +264,7 @@ export default function App() {
           </div>
 
           <div className="mt-8 pt-6 border-t border-slate-100">
-            <button 
+            <button
               onClick={() => setMode('admin-login')}
               className="w-full flex items-center justify-center gap-2 text-slate-400 hover:text-slate-600 text-sm font-medium transition-colors py-2"
             >
@@ -295,7 +295,7 @@ export default function App() {
           <div className="flex items-center gap-2">
             <CalIcon className="text-indigo-600" size={24} />
             <h1 className="font-bold text-xl tracking-tight text-slate-800 hidden sm:block">
-              TeamAvailability <span className="text-slate-400 font-normal">2026</span>
+              JGA Baudi <span className="text-slate-400 font-normal">2026</span>
             </h1>
           </div>
         </div>
@@ -311,7 +311,7 @@ export default function App() {
           )}
           {mode === 'admin' && (
             <div className="flex items-center gap-4">
-              <button 
+              <button
                 onClick={exportData}
                 className="text-xs font-bold bg-slate-800 text-white px-4 py-2 rounded-lg hover:bg-slate-700 transition shadow-sm"
               >
@@ -349,7 +349,7 @@ export default function App() {
               <h3 className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-4">Instructions</h3>
               <div className="bg-indigo-50 p-4 rounded-2xl border border-indigo-100">
                 <div className="flex gap-2 text-indigo-700 mb-2 items-center">
-                  <Info size={16} /> 
+                  <Info size={16} />
                   <span className="text-xs font-bold">How to use</span>
                 </div>
                 <p className="text-sm text-indigo-900/80 leading-relaxed mb-2">
@@ -366,11 +366,11 @@ export default function App() {
             <h3 className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-4">View Controls</h3>
             <div className="space-y-6">
               <label className="flex items-center gap-3 cursor-pointer group">
-                <input 
-                  type="checkbox" 
-                  checked={viewConfig.showHolidays} 
-                  onChange={e => setViewConfig(s => ({ ...s, showHolidays: e.target.checked }))} 
-                  className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" 
+                <input
+                  type="checkbox"
+                  checked={viewConfig.showHolidays}
+                  onChange={e => setViewConfig(s => ({ ...s, showHolidays: e.target.checked }))}
+                  className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                 />
                 <span className="text-sm font-semibold text-slate-600 group-hover:text-slate-800 transition">Show Holidays</span>
               </label>
@@ -379,37 +379,35 @@ export default function App() {
                 <p className="text-[10px] font-bold text-slate-400 mb-2">COUNTRIES</p>
                 <div className="flex gap-2 flex-wrap">
                   {['DE', 'LU', 'FR', 'US', 'GB'].map(c => (
-                    <button 
-                      key={c} 
+                    <button
+                      key={c}
                       onClick={() => setViewConfig(s => ({
-                        ...s, 
+                        ...s,
                         countries: s.countries.includes(c) ? s.countries.filter(x => x !== c) : [...s.countries, c]
-                      }))} 
-                      className={`text-[10px] font-bold px-3 py-1.5 rounded-full transition-colors ${
-                        viewConfig.countries.includes(c) 
-                          ? 'bg-indigo-600 text-white shadow-sm' 
+                      }))}
+                      className={`text-[10px] font-bold px-3 py-1.5 rounded-full transition-colors ${viewConfig.countries.includes(c)
+                          ? 'bg-indigo-600 text-white shadow-sm'
                           : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                      }`}
+                        }`}
                     >
                       {c}
                     </button>
                   ))}
                 </div>
               </div>
-              
+
               {mode === 'admin' && (
                 <div>
                   <p className="text-[10px] font-bold text-slate-400 mb-2">HIGHLIGHT CONFLICTS</p>
                   <div className="flex bg-slate-100 p-1 rounded-lg">
                     {(['none', 'any', 'all'] as const).map(m => (
-                      <button 
-                        key={m} 
-                        onClick={() => setViewConfig(s => ({ ...s, conflictMode: m }))} 
-                        className={`flex-1 text-[10px] font-bold py-1.5 rounded-md transition-all ${
-                          viewConfig.conflictMode === m 
-                            ? 'bg-white shadow-sm text-indigo-600' 
+                      <button
+                        key={m}
+                        onClick={() => setViewConfig(s => ({ ...s, conflictMode: m }))}
+                        className={`flex-1 text-[10px] font-bold py-1.5 rounded-md transition-all ${viewConfig.conflictMode === m
+                            ? 'bg-white shadow-sm text-indigo-600'
                             : 'text-slate-400 hover:text-slate-600'
-                        }`}
+                          }`}
                       >
                         {m.toUpperCase()}
                       </button>
@@ -429,11 +427,11 @@ export default function App() {
                 <div className="bg-slate-50/50 px-6 py-4 border-b border-slate-100 font-bold text-slate-800 text-lg">
                   {format(mDate, 'MMMM yyyy')}
                 </div>
-                
+
                 <div className="grid grid-cols-7 text-[10px] font-black text-slate-400 uppercase tracking-wider text-center py-3 border-b border-slate-100 bg-white">
                   {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => <div key={d}>{d}</div>)}
                 </div>
-                
+
                 <div className="grid grid-cols-7 auto-rows-fr">
                   {/* Empty cells for start of month */}
                   {Array.from({ length: (getDay(startOfMonth(mDate)) + 6) % 7 }).map((_, i) => (
@@ -445,7 +443,7 @@ export default function App() {
                     const dStr = format(day, 'yyyy-MM-dd');
                     const hols = viewConfig.showHolidays ? (holidays[dStr] || []) : [];
                     const isWknd = isWeekend(day);
-                    
+
                     // Logic differs based on mode
                     let isUnavailable = false;
                     let unavailablePeopleForDay: Person[] = [];
@@ -458,10 +456,10 @@ export default function App() {
                         const dates = allUnavailability[p.id] || [];
                         return dates.includes(dStr);
                       });
-                      
-                      isConflict = viewConfig.conflictMode === 'any' 
+
+                      isConflict = viewConfig.conflictMode === 'any'
                         ? unavailablePeopleForDay.length > 0
-                        : viewConfig.conflictMode === 'all' 
+                        : viewConfig.conflictMode === 'all'
                           ? unavailablePeopleForDay.length === people.length && people.length > 0
                           : false;
                     }
@@ -469,7 +467,7 @@ export default function App() {
                     const isSelected = drag.start && drag.end && dStr >= (drag.start < drag.end ? drag.start : drag.end) && dStr <= (drag.start < drag.end ? drag.end : drag.start);
 
                     return (
-                      <div 
+                      <div
                         key={dStr}
                         onMouseDown={() => handleDragStart(dStr)}
                         onMouseEnter={() => handleDragEnter(dStr)}
@@ -519,8 +517,8 @@ export default function App() {
                         {mode === 'admin' && (
                           <div className="flex flex-wrap content-start gap-1">
                             {unavailablePeopleForDay.map(p => (
-                              <div 
-                                key={p.id} 
+                              <div
+                                key={p.id}
                                 className="w-5 h-5 rounded-full shadow-sm ring-1 ring-white flex items-center justify-center text-[8px] font-bold text-white transition-transform hover:scale-110 hover:z-10"
                                 style={{ backgroundColor: p.color }}
                                 title={p.name}
