@@ -9,25 +9,12 @@ export async function initDb() {
   }
 
   // Initialize tables
-  await sql(`
-    CREATE TABLE IF NOT EXISTS people (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      color TEXT NOT NULL
-    );
-  `);
+  await sql('CREATE TABLE IF NOT EXISTS people (id TEXT PRIMARY KEY, name TEXT NOT NULL, color TEXT NOT NULL)');
 
-  await sql(`
-    CREATE TABLE IF NOT EXISTS availability (
-      person_id TEXT NOT NULL,
-      date TEXT NOT NULL,
-      PRIMARY KEY (person_id, date),
-      FOREIGN KEY (person_id) REFERENCES people (id)
-    );
-  `);
+  await sql('CREATE TABLE IF NOT EXISTS availability (person_id TEXT NOT NULL, date TEXT NOT NULL, PRIMARY KEY (person_id, date), FOREIGN KEY (person_id) REFERENCES people (id))');
 
   // Seed data if empty
-  const rows = await sql(`SELECT * FROM people LIMIT 1`);
+  const rows = await sql('SELECT * FROM people LIMIT 1');
 
   if (rows.length === 0) {
     const SEED_PEOPLE = [
@@ -58,13 +45,14 @@ export async function initDb() {
       { person_id: '3', date: '2026-08-22' },
     ];
 
+    console.log('Seeding database...');
     for (const person of SEED_PEOPLE) {
-      await sql(`INSERT INTO people (id, name, color) VALUES ($1, $2, $3)`, [person.id, person.name, person.color]);
+      await sql('INSERT INTO people (id, name, color) VALUES ($1, $2, $3)', [person.id, person.name, person.color]);
     }
     for (const entry of SEED_UNAVAILABILITY) {
-      await sql(`INSERT INTO availability (person_id, date) VALUES ($1, $2)`, [entry.person_id, entry.date]);
+      await sql('INSERT INTO availability (person_id, date) VALUES ($1, $2)', [entry.person_id, entry.date]);
     }
-    console.log('Database seeded.');
+    console.log('Database seeded successfully.');
   }
 }
 

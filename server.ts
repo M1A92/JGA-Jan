@@ -80,6 +80,43 @@ app.post("/api/availability/:personId", async (req, res) => {
   }
 });
 
+app.get("/api/debug", async (req, res) => {
+  try {
+    const hasDbUrl = !!(process.env.DATABASE_URL || process.env.POSTGRES_URL);
+    let dbStatus = "Unknown";
+    let tables = [];
+    let peopleCount = 0;
+
+    if (hasDbUrl) {
+      try {
+        await ensureDb();
+        dbStatus = "Connected";
+        const rows = await sql("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'");
+        tables = rows.map((r: any) => r.table_name);
+        const peopleRows = await sql("SELECT count(*) as count FROM people");
+        peopleCount = parseInt(peopleRows[0]?.count || "0");
+      } catch (e: any) {
+        dbStatus = `Error: ${e.message}`;
+      }
+    }
+
+    res.json({
+      env: {
+        hasDbUrl,
+        nodeEnv: process.env.NODE_ENV,
+        isVercel: !!process.env.VERCEL
+      },
+      db: {
+        status: dbStatus,
+        tables,
+        peopleCount
+      }
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });
 });
