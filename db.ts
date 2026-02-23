@@ -24,7 +24,7 @@ export async function initDb() {
 
   try {
     // 1. Create tables
-    await sql('CREATE TABLE IF NOT EXISTS people (id TEXT PRIMARY KEY, name TEXT NOT NULL, color TEXT NOT NULL)');
+    await sql('CREATE TABLE IF NOT EXISTS people (id TEXT PRIMARY KEY, name TEXT NOT NULL, color TEXT NOT NULL, passcode TEXT)');
     await sql('CREATE TABLE IF NOT EXISTS availability (person_id TEXT NOT NULL, date TEXT NOT NULL, PRIMARY KEY (person_id, date), FOREIGN KEY (person_id) REFERENCES people (id))');
 
     // 2. Check if data exists
@@ -35,10 +35,10 @@ export async function initDb() {
       console.log('Seeding database with batch queries...');
 
       const SEED_PEOPLE = [
-        ['1', 'Jan', '#3b82f6'], ['2', 'Kevin', '#ef4444'], ['3', 'Dom', '#10b981'],
-        ['4', 'Stephan', '#f59e0b'], ['5', 'David', '#8b5cf6'], ['6', 'Niko', '#ec4899'],
-        ['7', 'Luki', '#06b6d4'], ['8', 'Julian', '#f97316'], ['9', 'Florian', '#6366f1'],
-        ['10', 'Mike', '#84cc16'], ['11', 'Grischov', '#0d9488']
+        ['1', 'Jan', '#3b82f6', '1234'], ['2', 'Kevin', '#ef4444', '1234'], ['3', 'Dom', '#10b981', '1234'],
+        ['4', 'Stephan', '#f59e0b', '1234'], ['5', 'David', '#8b5cf6', '1234'], ['6', 'Niko', '#ec4899', '1234'],
+        ['7', 'Luki', '#06b6d4', '1234'], ['8', 'Julian', '#f97316', '1234'], ['9', 'Florian', '#6366f1', '1234'],
+        ['10', 'Mike', '#84cc16', '1234'], ['11', 'Grischov', '#0d9488', '1234']
       ];
 
       const SEED_UNAVAILABILITY = [
@@ -48,8 +48,8 @@ export async function initDb() {
       ];
 
       // Batch insert people
-      const peopleValues = SEED_PEOPLE.map((_, i) => `($${i * 3 + 1}, $${i * 3 + 2}, $${i * 3 + 3})`).join(',');
-      await sql(`INSERT INTO people (id, name, color) VALUES ${peopleValues}`, SEED_PEOPLE.flat());
+      const peopleValues = SEED_PEOPLE.map((_, i) => `($${i * 4 + 1}, $${i * 4 + 2}, $${i * 4 + 3}, $${i * 4 + 4})`).join(',');
+      await sql(`INSERT INTO people (id, name, color, passcode) VALUES ${peopleValues}`, SEED_PEOPLE.flat());
 
       // Batch insert unavailability
       const availValues = SEED_UNAVAILABILITY.map((_, i) => `($${i * 2 + 1}, $${i * 2 + 2})`).join(',');
@@ -60,8 +60,15 @@ export async function initDb() {
       // For existing databases, ensure Grischov is added
       const existing = await sql("SELECT * FROM people WHERE id = '11'");
       if (existing.length === 0) {
-        await sql("INSERT INTO people (id, name, color) VALUES ('11', 'Grischov', '#0d9488')");
+        await sql("INSERT INTO people (id, name, color, passcode) VALUES ('11', 'Grischov', '#0d9488', '1234')");
         console.log('Added missing user Grischov to database.');
+      }
+
+      // Migration: Ensure passcode column exists and has defaults for existing users
+      try {
+        await sql("ALTER TABLE people ADD COLUMN IF NOT EXISTS passcode TEXT DEFAULT '1234'");
+      } catch (e) {
+        // column might already exist or default failed
       }
     }
   } catch (err) {

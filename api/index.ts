@@ -20,10 +20,49 @@ function ensureDb() {
 app.get("/api/people", async (req, res) => {
     try {
         await ensureDb();
-        const rows = await sql("SELECT * FROM people");
+        const rows = await sql("SELECT id, name, color FROM people");
         res.json(rows);
-    } catch (err: any) {
-        res.status(500).json({ error: err.message });
+    } catch (err) {
+        console.error("API Error (/api/people):", err);
+        res.status(500).json({ error: "Failed to fetch people" });
+    }
+});
+
+app.post("/api/login", async (req, res) => {
+    try {
+        const { name, passcode } = req.body;
+        if (!name || !passcode) {
+            return res.status(400).json({ error: "Name and passcode are required" });
+        }
+
+        await ensureDb();
+
+        // Find user by name
+        const users = await sql("SELECT * FROM people WHERE LOWER(name) = LOWER($1)", [name]);
+
+        if (users.length > 0) {
+            const user = users[0];
+            if (user.passcode === passcode) {
+                // Success
+                const { passcode, ...userWithoutPasscode } = user;
+                return res.json(userWithoutPasscode);
+            } else {
+                // Wrong PIN
+                return res.status(401).json({ error: "Incorrect PIN" });
+            }
+        } else {
+            // Create new user
+            const id = Date.now().toString();
+            const colors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316', '#6366f1', '#84cc16'];
+            const color = colors[Math.floor(Math.random() * colors.length)];
+
+            await sql("INSERT INTO people (id, name, color, passcode) VALUES ($1, $2, $3, $4)", [id, name, color, passcode]);
+
+            res.json({ id, name, color });
+        }
+    } catch (err) {
+        console.error("API Error (/api/login):", err);
+        res.status(500).json({ error: "Internal Server Error" });
     }
 });
 

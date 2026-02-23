@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isWeekend, parseISO, getDay } from 'date-fns';
 import Holidays from 'date-holidays';
-import { Calendar as CalIcon, Check, Info, User, Shield, LogOut, ArrowLeft } from 'lucide-react';
+import { Calendar, Check, Info, User, Shield, LogOut, ArrowLeft, UserPlus, AlertCircle, Settings } from 'lucide-react';
 
 // Types
 interface Person {
@@ -22,7 +22,7 @@ interface ViewConfig {
 type AppMode = 'login' | 'personal' | 'admin' | 'admin-login';
 
 export default function App() {
-  const [mode, setMode] = useState<AppMode>('login');
+  const [mode, setMode] = useState<AppMode>('personal'); // Changed initial mode to 'personal' for the new login flow
   const [currentUser, setCurrentUser] = useState<Person | null>(null);
   const [people, setPeople] = useState<Person[]>([]);
 
@@ -33,6 +33,12 @@ export default function App() {
   // Data state
   const [personalUnavailability, setPersonalUnavailability] = useState<string[]>([]);
   const [allUnavailability, setAllUnavailability] = useState<Record<string, string[]>>({});
+
+  // Login state
+  const [loginForm, setLoginForm] = useState({ name: '', pin: '' });
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
 
   const [viewConfig, setViewConfig] = useState<ViewConfig>({
     showHolidays: true,
@@ -47,24 +53,61 @@ export default function App() {
 
   const [drag, setDrag] = useState<{ start: string | null; end: string | null }>({ start: null, end: null });
 
-  // Fetch people on mount
+  // Helper functions for data fetching
+  const fetchPeople = async () => {
+    try {
+      const res = await fetch('/api/people');
+      const data = await res.json();
+      setPeople(data);
+    } catch (err) {
+      console.error("Failed to fetch people", err);
+    }
+  };
+
+  const fetchAvailability = async (userId: string) => {
+    try {
+      const res = await fetch(`/api/availability/${userId}`);
+      const data = await res.json();
+      setPersonalUnavailability(data);
+    } catch (err) {
+      console.error("Failed to fetch personal availability", err);
+    }
+  };
+
+  // Initial data fetch and user login check on mount
   useEffect(() => {
-    fetch('/api/people')
-      .then(res => res.json())
-      .then(data => setPeople(data))
-      .catch(err => console.error("Failed to fetch people", err));
+    const init = async () => {
+      await fetchPeople();
+      const savedUser = localStorage.getItem('jga_user');
+      if (savedUser) {
+        try {
+          const user = JSON.parse(savedUser);
+          setCurrentUser(user);
+          setMode('personal'); // Ensure mode is personal if user is logged in
+          await fetchAvailability(user.id);
+        } catch (e) {
+          console.error("Failed to parse saved user from localStorage", e);
+          localStorage.removeItem('jga_user');
+          setCurrentUser(null);
+          setMode('personal'); // Stay in personal mode, but without a user, so login UI shows
+        }
+      } else {
+        setMode('personal'); // If no saved user, default to personal mode to show login UI
+      }
+      setIsInitializing(false);
+    };
+    init();
   }, []);
 
   // Fetch data when mode/user changes
   useEffect(() => {
     if (mode === 'personal' && currentUser) {
-      fetch(`/api/availability/${currentUser.id}`)
-        .then(res => res.json())
-        .then(data => setPersonalUnavailability(data));
+      fetchAvailability(currentUser.id);
     } else if (mode === 'admin') {
       fetch('/api/availability')
         .then(res => res.json())
-        .then(data => setAllUnavailability(data));
+        .then(data => setAllUnavailability(data))
+        .catch(err => console.error("Failed to fetch all availability", err));
     }
   }, [mode, currentUser]);
 
@@ -110,6 +153,45 @@ export default function App() {
     }
   };
 
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!loginForm.name || !loginForm.pin) return;
+
+    setIsLoggingIn(true);
+    setLoginError(null);
+
+    try {
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: loginForm.name, passcode: loginForm.pin })
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Login failed');
+      }
+
+      const user = await res.json();
+      setCurrentUser(user);
+      localStorage.setItem('jga_user', JSON.stringify(user));
+      await fetchAvailability(user.id);
+      await fetchPeople(); // Update local people list to include new user if created
+      setMode('personal'); // Ensure mode is set to personal after successful login
+    } catch (err: any) {
+      setLoginError(err.message);
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    localStorage.removeItem('jga_user');
+    setPersonalUnavailability([]);
+    setMode('personal'); // Go back to personal mode, which will show the login UI
+  };
+
   const handleDragStart = (dateStr: string) => {
     if (mode === 'personal') {
       setDrag({ start: dateStr, end: dateStr });
@@ -152,17 +234,6 @@ export default function App() {
       }
     }
     setDrag({ start: null, end: null });
-  };
-
-  const handleLogin = (person: Person) => {
-    setCurrentUser(person);
-    setMode('personal');
-  };
-
-  const handleLogout = () => {
-    setCurrentUser(null);
-    setMode('login');
-    setPersonalUnavailability([]);
   };
 
   const handleAdminLogin = (e: React.FormEvent) => {
@@ -230,7 +301,7 @@ export default function App() {
             <button
               type="button"
               onClick={() => {
-                setMode('login');
+                setMode('personal'); // Changed to 'personal' to show the new login UI
                 setAdminPassword('');
                 setPasswordError(false);
               }}
@@ -244,105 +315,145 @@ export default function App() {
     );
   }
 
-  if (mode === 'login') {
-    return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
-        <div className="bg-white p-8 rounded-3xl shadow-xl max-w-md w-full border border-slate-100">
-          <div className="flex justify-center mb-6">
-            <div className="bg-indigo-50 p-4 rounded-full">
-              <CalIcon className="text-indigo-600 w-10 h-10" />
-            </div>
-          </div>
-          <h1 className="text-2xl font-bold text-center text-slate-800 mb-2">Welcome</h1>
-          <p className="text-center text-slate-500 mb-8">Select your name to manage your availability for 2026.</p>
-
-          <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
-            {people.map(person => (
-              <button
-                key={person.id}
-                onClick={() => handleLogin(person)}
-                className="w-full flex items-center gap-4 p-4 rounded-xl border border-slate-200 hover:border-indigo-500 hover:bg-indigo-50 transition-all group text-left"
-              >
-                <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-sm" style={{ backgroundColor: person.color }}>
-                  {person.name.charAt(0)}
-                </div>
-                <span className="font-semibold text-slate-700 group-hover:text-indigo-700 text-lg">{person.name}</span>
-                <div className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity text-indigo-600">
-                  <ArrowLeft className="rotate-180" />
-                </div>
-              </button>
-            ))}
-          </div>
-
-          <div className="mt-8 pt-6 border-t border-slate-100">
-            <button
-              onClick={() => setMode('admin-login')}
-              className="w-full flex items-center justify-center gap-2 text-slate-400 hover:text-slate-600 text-sm font-medium transition-colors py-2"
-            >
-              <Shield size={14} />
-              Admin View
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-slate-50 font-sans text-slate-900" onMouseUp={finalizeDrag}>
+      {/* Landing / Welcome Screen */}
+      {!currentUser && mode === 'personal' && !isInitializing && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-6">
+          <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+            <div className="bg-indigo-600 px-8 py-10 text-center relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-full opacity-10">
+                <div className="absolute -top-10 -left-10 w-40 h-40 bg-white rounded-full blur-3xl" />
+                <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-white rounded-full blur-3xl" />
+              </div>
+
+              <div className="relative z-10">
+                <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-xl ring-1 ring-white/30">
+                  <UserPlus className="text-white" size={32} />
+                </div>
+                <h2 className="text-3xl font-black text-white mb-2 leading-tight">Welcome to JGA 26</h2>
+                <p className="text-indigo-100 text-sm font-medium opacity-80">Join the coordination plan</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleLogin} className="p-8 space-y-6">
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Your Full Name</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Enter your name..."
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all font-bold text-slate-700 placeholder:text-slate-300"
+                    value={loginForm.name}
+                    onChange={e => setLoginForm(prev => ({ ...prev, name: e.target.value }))}
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Secure 4-Digit PIN</label>
+                  <input
+                    type="password"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={4}
+                    required
+                    placeholder="Create or enter PIN..."
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all font-bold text-slate-700 placeholder:text-slate-300 tracking-widest"
+                    value={loginForm.pin}
+                    onChange={e => setLoginForm(prev => ({ ...prev, pin: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              {loginError && (
+                <div className="bg-red-50 border border-red-100 p-4 rounded-xl flex gap-3 text-red-600 animate-in slide-in-from-top-2 duration-300">
+                  <AlertCircle size={20} className="shrink-0" />
+                  <p className="text-xs font-bold leading-relaxed">{loginError}</p>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={isLoggingIn}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white font-black py-4 rounded-2xl shadow-xl shadow-indigo-100 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+              >
+                {isLoggingIn ? 'SECURELY JOINING...' : 'CONTINUE TO CALENDAR'}
+              </button>
+
+              <div className="text-center">
+                <p className="text-[10px] leading-relaxed text-slate-400 font-bold uppercase tracking-wider">
+                  Entering a new name will create a profile.
+                </p>
+              </div>
+            </form>
+            <div className="mt-0 pt-6 border-t border-slate-100">
+              <button
+                onClick={() => setMode('admin-login')}
+                className="w-full flex items-center justify-center gap-2 text-slate-400 hover:text-slate-600 text-sm font-medium transition-colors py-2"
+              >
+                <Shield size={14} />
+                Admin View
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isInitializing && (
+        <div className="fixed inset-0 z-50 bg-white flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-12 h-12 border-4 border-slate-100 border-t-indigo-600 rounded-full animate-spin" />
+            <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Waking up the database...</span>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <header className="bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center shadow-sm z-10">
         <div className="flex items-center gap-3">
-          {mode === 'personal' && (
-            <button onClick={handleLogout} className="p-2 -ml-2 hover:bg-slate-100 rounded-full text-slate-500 transition-colors" title="Back to login">
-              <ArrowLeft size={20} />
-            </button>
-          )}
-          {mode === 'admin' && (
-            <button onClick={() => setMode('login')} className="p-2 -ml-2 hover:bg-slate-100 rounded-full text-slate-500 transition-colors" title="Back to login">
-              <ArrowLeft size={20} />
-            </button>
-          )}
-          <div className="flex items-center gap-2">
-            <CalIcon className="text-indigo-600" size={24} />
-            <h1 className="font-bold text-xl tracking-tight text-slate-800 hidden sm:block">
-              JGA Baudi <span className="text-slate-400 font-normal">2026</span>
-            </h1>
-            <h1 className="font-bold text-lg tracking-tight text-slate-800 sm:hidden">
-              JGA <span className="text-slate-400 font-normal">26</span>
-            </h1>
+          <div className="bg-indigo-600 p-2 rounded-xl shadow-indigo-100 shadow-lg">
+            <Calendar className="text-white" size={24} />
+          </div>
+          <div>
+            <h1 className="font-black text-xl tracking-tight text-slate-800 hidden sm:block">JGA Baudi 2026</h1>
+            <h1 className="font-black text-xl tracking-tight text-slate-800 sm:hidden">JGA 26</h1>
           </div>
         </div>
 
         <div className="flex items-center gap-4">
-          {mode === 'personal' && currentUser && (
-            <div className="flex items-center gap-3 bg-slate-100 px-3 py-1.5 rounded-full">
-              <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold" style={{ backgroundColor: currentUser.color }}>
+          <div className="hidden lg:flex bg-slate-100 p-1 rounded-xl border border-slate-200">
+            <button
+              onClick={() => setMode('personal')}
+              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${mode === 'personal' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              MY DATES
+            </button>
+            <button
+              onClick={() => setMode('admin')}
+              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${mode === 'admin' ? 'bg-white shadow-sm text-amber-600' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              TEAM VIEW
+            </button>
+          </div>
+
+          {currentUser && (
+            <div className="flex items-center gap-3 bg-slate-50 px-4 py-2 rounded-full border border-slate-200">
+              <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shadow-sm" style={{ backgroundColor: currentUser.color }}>
                 {currentUser.name.charAt(0)}
               </div>
-              <span className="font-semibold text-slate-700 text-sm">{currentUser.name}</span>
-            </div>
-          )}
-          {mode === 'admin' && (
-            <div className="flex items-center gap-4">
-              <button
-                onClick={exportData}
-                className="text-xs font-bold bg-slate-800 text-white px-4 py-2 rounded-lg hover:bg-slate-700 transition shadow-sm"
-              >
-                Export JSON
+              <span className="text-xs font-bold text-slate-700 hidden md:block">{currentUser.name}</span>
+              <button onClick={handleLogout} className="text-slate-400 hover:text-red-500 transition-colors">
+                <LogOut size={16} />
               </button>
-              <div className="flex items-center gap-2 bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-full">
-                <Shield size={14} />
-                <span className="font-bold text-xs uppercase tracking-wide">Admin</span>
-              </div>
             </div>
           )}
 
           <button
             onClick={() => setShowMobileSettings(true)}
-            className="lg:hidden p-2 bg-slate-100 rounded-full text-slate-600 border border-slate-200"
+            className="lg:hidden p-2 bg-slate-100 rounded-full text-slate-600 border border-slate-200 shadow-sm"
           >
-            <Info size={18} />
+            <Settings size={18} />
           </button>
         </div>
       </header>
