@@ -66,6 +66,24 @@ app.post("/api/login", async (req, res) => {
     }
 });
 
+app.delete("/api/people/:id", async (req, res) => {
+    try {
+        await ensureDb();
+        const { id } = req.params;
+
+        // 1. Delete availability records (manual cascade)
+        await sql("DELETE FROM availability WHERE person_id = $1", [id]);
+
+        // 2. Delete the person
+        await sql("DELETE FROM people WHERE id = $1", [id]);
+
+        res.json({ success: true });
+    } catch (err: any) {
+        console.error("API Error (DELETE /api/people/:id):", err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.get("/api/availability", async (req, res) => {
     try {
         await ensureDb();

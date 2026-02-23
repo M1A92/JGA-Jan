@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isWeekend, parseISO, getDay } from 'date-fns';
 import Holidays from 'date-holidays';
-import { Calendar, Check, Info, User, Shield, LogOut, ArrowLeft, UserPlus, AlertCircle, Settings } from 'lucide-react';
+import { Calendar, Check, Info, User, Shield, LogOut, ArrowLeft, UserPlus, AlertCircle, Settings, Trash2 } from 'lucide-react';
 
 // Types
 interface Person {
@@ -264,6 +264,26 @@ export default function App() {
     }
   };
 
+  const handleDeletePerson = async (id: string, name: string) => {
+    if (!window.confirm(`Are you sure you want to delete ${name}? This action cannot be undone.`)) return;
+
+    try {
+      const res = await fetch(`/api/people/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to delete person');
+
+      // Refresh data
+      await fetchPeople();
+      if (mode === 'admin') {
+        fetch('/api/availability')
+          .then(res => res.json())
+          .then(data => setAllUnavailability(data));
+      }
+    } catch (err) {
+      console.error("Delete error:", err);
+      alert("Failed to delete member.");
+    }
+  };
+
   const exportData = () => {
     const data = {
       people,
@@ -486,12 +506,21 @@ export default function App() {
               <h3 className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-4">Team Overview</h3>
               <div className="space-y-2">
                 {people.map(p => (
-                  <div key={p.id} className="p-3 rounded-xl border border-slate-100 bg-slate-50 flex items-center gap-3">
+                  <div key={p.id} className="p-3 rounded-xl border border-slate-100 bg-slate-50 flex items-center gap-3 group/item">
                     <div className="w-4 h-4 rounded-full shadow-sm ring-1 ring-black/5" style={{ backgroundColor: p.color }} />
                     <span className="text-sm font-bold text-slate-700 flex-1">{p.name}</span>
-                    <span className="text-xs font-medium text-slate-400">
-                      {(allUnavailability[p.id] || []).length} days
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-slate-400">
+                        {(allUnavailability[p.id] || []).length} days
+                      </span>
+                      <button
+                        onClick={() => handleDeletePerson(p.id, p.name)}
+                        className="text-slate-300 hover:text-red-500 transition-colors p-1 opacity-0 group-hover/item:opacity-100"
+                        title="Delete Member"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
