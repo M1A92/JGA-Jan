@@ -126,6 +126,13 @@ export default function App() {
     if (drag.start && drag.end && mode === 'personal' && currentUser) {
       const start = drag.start < drag.end ? drag.start : drag.end;
       const end = drag.start < drag.end ? drag.end : drag.start;
+
+      // Only process if it was an actual range drag, not a single click
+      if (start === end) {
+        setDrag({ start: null, end: null });
+        return;
+      }
+
       const range = eachDayOfInterval({ start: parseISO(start), end: parseISO(end) }).map(d => format(d, 'yyyy-MM-dd'));
 
       // Add all dates in range
