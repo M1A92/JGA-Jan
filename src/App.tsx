@@ -229,6 +229,11 @@ export default function App() {
       // Only process if it was an actual range drag, not a single click
       if (start === end) {
         setDrag({ start: null, end: null });
+        if (!hasMoved.current) {
+          // Explicitly call toggleDate here for desktop clicks, because setting drag state
+          // to null can cause a re-render that swallows the native onClick event.
+          toggleDate(start);
+        }
         return;
       }
 
