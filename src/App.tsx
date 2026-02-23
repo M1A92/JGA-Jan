@@ -75,8 +75,9 @@ export default function App() {
       hd.init(c);
       hd.getHolidays(2026).forEach(h => {
         const d = h.date.split(' ')[0];
+        const nameWithPrefix = `[${c}] ${h.name}`;
         if (!map[d]) map[d] = [];
-        if (!map[d].includes(h.name)) map[d].push(h.name);
+        if (!map[d].includes(nameWithPrefix)) map[d].push(nameWithPrefix);
       });
     });
     if (!map['2026-09-05']) map['2026-09-05'] = [];
@@ -609,6 +610,8 @@ export default function App() {
                               handleDragEnter(dStr);
                             }}
                             onClick={(e) => {
+                              // If they were dragging, don't toggle at the end
+                              if (drag.start && drag.start !== drag.end) return;
                               e.preventDefault();
                               e.stopPropagation();
                               toggleDate(dStr);
