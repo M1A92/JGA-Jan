@@ -42,6 +42,8 @@ export default function App() {
     endMonth: 8
   });
 
+  const [showMobileSettings, setShowMobileSettings] = useState(false);
+
   const [drag, setDrag] = useState<{ start: string | null; end: string | null }>({ start: null, end: null });
 
   // Fetch people on mount
@@ -297,6 +299,9 @@ export default function App() {
             <h1 className="font-bold text-xl tracking-tight text-slate-800 hidden sm:block">
               JGA Baudi <span className="text-slate-400 font-normal">2026</span>
             </h1>
+            <h1 className="font-bold text-lg tracking-tight text-slate-800 sm:hidden">
+              JGA <span className="text-slate-400 font-normal">26</span>
+            </h1>
           </div>
         </div>
 
@@ -319,10 +324,17 @@ export default function App() {
               </button>
               <div className="flex items-center gap-2 bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-full">
                 <Shield size={14} />
-                <span className="font-bold text-xs uppercase tracking-wide">Admin Mode</span>
+                <span className="font-bold text-xs uppercase tracking-wide">Admin</span>
               </div>
             </div>
           )}
+
+          <button
+            onClick={() => setShowMobileSettings(true)}
+            className="lg:hidden p-2 bg-slate-100 rounded-full text-slate-600 border border-slate-200"
+          >
+            <Info size={18} />
+          </button>
         </div>
       </header>
 
@@ -386,8 +398,8 @@ export default function App() {
                         countries: s.countries.includes(c) ? s.countries.filter(x => x !== c) : [...s.countries, c]
                       }))}
                       className={`text-[10px] font-bold px-3 py-1.5 rounded-full transition-colors ${viewConfig.countries.includes(c)
-                          ? 'bg-indigo-600 text-white shadow-sm'
-                          : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                        ? 'bg-indigo-600 text-white shadow-sm'
+                        : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
                         }`}
                     >
                       {c}
@@ -405,8 +417,8 @@ export default function App() {
                         key={m}
                         onClick={() => setViewConfig(s => ({ ...s, conflictMode: m }))}
                         className={`flex-1 text-[10px] font-bold py-1.5 rounded-md transition-all ${viewConfig.conflictMode === m
-                            ? 'bg-white shadow-sm text-indigo-600'
-                            : 'text-slate-400 hover:text-slate-600'
+                          ? 'bg-white shadow-sm text-indigo-600'
+                          : 'text-slate-400 hover:text-slate-600'
                           }`}
                       >
                         {m.toUpperCase()}
@@ -418,6 +430,86 @@ export default function App() {
             </div>
           </section>
         </aside>
+
+        {/* Mobile Settings Overlay */}
+        {showMobileSettings && (
+          <div className="fixed inset-0 z-50 lg:hidden flex items-end">
+            <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setShowMobileSettings(false)} />
+            <div className="relative w-full bg-white rounded-t-3xl p-6 shadow-2xl animate-in slide-in-from-bottom duration-300">
+              <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6" />
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-lg font-bold text-slate-800">Settings & View</h3>
+                <button
+                  onClick={() => setShowMobileSettings(false)}
+                  className="p-2 hover:bg-slate-100 rounded-full text-slate-400"
+                >
+                  <svg size={24} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+              </div>
+
+              <div className="space-y-8 pb-8">
+                <label className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                  <div>
+                    <span className="font-bold text-slate-700 block text-base">Show Holidays</span>
+                    <span className="text-xs text-slate-500">Display public holidays in the calendar</span>
+                  </div>
+                  <div
+                    className={`w-12 h-6 rounded-full relative transition-colors ${viewConfig.showHolidays ? 'bg-indigo-600' : 'bg-slate-300'}`}
+                    onClick={() => setViewConfig(s => ({ ...s, showHolidays: !s.showHolidays }))}
+                  >
+                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${viewConfig.showHolidays ? 'left-7' : 'left-1'}`} />
+                  </div>
+                </label>
+
+                <div>
+                  <p className="text-xs font-black uppercase text-slate-400 tracking-widest mb-3">Holidays Countries</p>
+                  <div className="grid grid-cols-5 gap-2">
+                    {['DE', 'LU', 'FR', 'US', 'GB'].map(c => (
+                      <button
+                        key={c}
+                        onClick={() => setViewConfig(s => ({
+                          ...s,
+                          countries: s.countries.includes(c) ? s.countries.filter(x => x !== c) : [...s.countries, c]
+                        }))}
+                        className={`font-bold py-3 rounded-xl transition-all border ${viewConfig.countries.includes(c)
+                          ? 'bg-indigo-50 border-indigo-200 text-indigo-600'
+                          : 'bg-white border-slate-200 text-slate-500'
+                          }`}
+                      >
+                        {c}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {mode === 'admin' && (
+                  <div>
+                    <p className="text-xs font-black uppercase text-slate-400 tracking-widest mb-3">Highlight Conflicts</p>
+                    <div className="flex bg-slate-100 p-1.5 rounded-2xl">
+                      {(['none', 'any', 'all'] as const).map(m => (
+                        <button
+                          key={m}
+                          onClick={() => setViewConfig(s => ({ ...s, conflictMode: m }))}
+                          className={`flex-1 font-bold py-3 rounded-xl transition-all ${viewConfig.conflictMode === m
+                            ? 'bg-white shadow-sm text-indigo-600'
+                            : 'text-slate-400'
+                            }`}
+                        >
+                          {m.toUpperCase()}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="bg-indigo-50 p-4 rounded-2xl border border-indigo-100 flex gap-3 text-indigo-900/60">
+                  <Info size={20} className="shrink-0 text-indigo-600" />
+                  <p className="text-sm">Tap any day once to Mark/Unmark. Dragging is available on desktop computers.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Main Calendar Area */}
         <main className="flex-1 bg-slate-50 p-4 sm:p-8 overflow-y-auto overflow-x-hidden">
@@ -469,9 +561,19 @@ export default function App() {
                     return (
                       <div
                         key={dStr}
-                        onMouseDown={() => handleDragStart(dStr)}
-                        onMouseEnter={() => handleDragEnter(dStr)}
-                        onClick={() => toggleDate(dStr)}
+                        onMouseDown={(e) => {
+                          if ('ontouchstart' in window) return; // Prevent drag on touch devices
+                          handleDragStart(dStr);
+                        }}
+                        onMouseEnter={() => {
+                          if ('ontouchstart' in window) return;
+                          handleDragEnter(dStr);
+                        }}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          toggleDate(dStr);
+                        }}
                         className={`
                           min-h-[6rem] p-2 border-b border-r border-slate-100 relative group transition-colors select-none
                           ${isWknd ? 'bg-slate-50/50' : 'bg-white'}
