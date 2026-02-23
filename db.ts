@@ -38,7 +38,7 @@ export async function initDb() {
         ['1', 'Jan', '#3b82f6'], ['2', 'Kevin', '#ef4444'], ['3', 'Dom', '#10b981'],
         ['4', 'Stephan', '#f59e0b'], ['5', 'David', '#8b5cf6'], ['6', 'Niko', '#ec4899'],
         ['7', 'Luki', '#06b6d4'], ['8', 'Julian', '#f97316'], ['9', 'Florian', '#6366f1'],
-        ['10', 'Mike', '#84cc16']
+        ['10', 'Mike', '#84cc16'], ['11', 'Grischov', '#0d9488']
       ];
 
       const SEED_UNAVAILABILITY = [
@@ -56,6 +56,13 @@ export async function initDb() {
       await sql(`INSERT INTO availability (person_id, date) VALUES ${availValues}`, SEED_UNAVAILABILITY.flat());
 
       console.log('Database seeded successfully.');
+    } else {
+      // For existing databases, ensure Grischov is added
+      const existing = await sql("SELECT * FROM people WHERE id = '11'");
+      if (existing.length === 0) {
+        await sql("INSERT INTO people (id, name, color) VALUES ('11', 'Grischov', '#0d9488')");
+        console.log('Added missing user Grischov to database.');
+      }
     }
   } catch (err) {
     console.error("initDb Error:", err);
