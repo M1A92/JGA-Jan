@@ -52,6 +52,7 @@ export default function App() {
   const [showMobileSettings, setShowMobileSettings] = useState(false);
 
   const [drag, setDrag] = useState<{ start: string | null; end: string | null }>({ start: null, end: null });
+  const hasMoved = React.useRef(false);
 
   // Helper functions for data fetching
   const fetchPeople = async () => {
@@ -205,13 +206,17 @@ export default function App() {
   };
 
   const handleDragStart = (dateStr: string) => {
-    if (mode === 'personal') {
+    if (mode === 'personal' && currentUser) {
       setDrag({ start: dateStr, end: dateStr });
+      hasMoved.current = false;
     }
   };
 
   const handleDragEnter = (dateStr: string) => {
-    if (drag.start && mode === 'personal') {
+    if (drag.start && mode === 'personal' && currentUser) {
+      if (dateStr !== drag.start) {
+        hasMoved.current = true;
+      }
       setDrag(prev => ({ ...prev, end: dateStr }));
     }
   };
@@ -435,22 +440,22 @@ export default function App() {
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="hidden lg:flex bg-slate-100 p-1 rounded-xl border border-slate-200">
-            <button
-              onClick={() => setMode('personal')}
-              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${mode === 'personal' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-              MY DATES
-            </button>
-            {mode === 'admin' && (
+          {mode === 'admin' && (
+            <div className="hidden lg:flex bg-slate-100 p-1 rounded-xl border border-slate-200">
+              <button
+                onClick={() => setMode('personal')}
+                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${mode === 'personal' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                MY DATES
+              </button>
               <button
                 onClick={() => setMode('admin')}
                 className={`px-4 py-2 rounded-lg text-xs font-bold transition-all bg-white shadow-sm text-amber-600`}
               >
                 TEAM VIEW
               </button>
-            )}
-          </div>
+            </div>
+          )}
 
           {currentUser && (
             <div className="flex items-center gap-3 bg-slate-50 px-4 py-2 rounded-full border border-slate-200">
@@ -746,8 +751,7 @@ export default function App() {
                               handleDragEnter(dStr);
                             }}
                             onClick={(e) => {
-                              // If they were dragging, don't toggle at the end
-                              if (drag.start && drag.start !== drag.end) return;
+                              if (hasMoved.current) return;
                               e.preventDefault();
                               e.stopPropagation();
                               toggleDate(dStr);
