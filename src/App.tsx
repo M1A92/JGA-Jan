@@ -55,6 +55,7 @@ export default function App() {
 
   // Helper functions for data fetching
   const fetchPeople = async () => {
+    if (mode !== 'admin') return; // Don't fetch the full list for regular users
     try {
       const res = await fetch('/api/people');
       const data = await res.json();
@@ -77,33 +78,28 @@ export default function App() {
   // Initial data fetch and user login check on mount
   useEffect(() => {
     const init = async () => {
-      await fetchPeople();
       const savedUser = localStorage.getItem('jga_user');
       if (savedUser) {
         try {
           const user = JSON.parse(savedUser);
           setCurrentUser(user);
-          setMode('personal'); // Ensure mode is personal if user is logged in
           await fetchAvailability(user.id);
         } catch (e) {
-          console.error("Failed to parse saved user from localStorage", e);
           localStorage.removeItem('jga_user');
-          setCurrentUser(null);
-          setMode('personal'); // Stay in personal mode, but without a user, so login UI shows
         }
-      } else {
-        setMode('personal'); // If no saved user, default to personal mode to show login UI
       }
+      if (mode === 'admin') await fetchPeople();
       setIsInitializing(false);
     };
     init();
-  }, []);
+  }, [mode]);
 
   // Fetch data when mode/user changes
   useEffect(() => {
     if (mode === 'personal' && currentUser) {
       fetchAvailability(currentUser.id);
     } else if (mode === 'admin') {
+      fetchPeople();
       fetch('/api/availability')
         .then(res => res.json())
         .then(data => setAllUnavailability(data))
@@ -136,20 +132,36 @@ export default function App() {
     return arr;
   }, [viewConfig.startMonth, viewConfig.endMonth]);
 
+  const lastToggle = React.useRef<{ date: string, time: number } | null>(null);
+
   const toggleDate = async (dateStr: string) => {
     if (mode === 'personal' && currentUser) {
-      const isUnavailable = personalUnavailability.includes(dateStr);
-      // Optimistic update
-      setPersonalUnavailability(prev =>
-        isUnavailable ? prev.filter(d => d !== dateStr) : [...prev, dateStr]
-      );
+      // Prevent double-firing (especially if MouseUp and Click both trigger)
+      if (lastToggle.current && lastToggle.current.date === dateStr && (Date.now() - lastToggle.current.time) < 300) {
+        return;
+      }
+      lastToggle.current = { date: dateStr, time: Date.now() };
 
-      // API call
-      await fetch(`/api/availability/${currentUser.id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date: dateStr, available: isUnavailable })
+      let nowIsUnavailable = false;
+
+      // Use functional update to get absolute latest state and prevent race conditions
+      setPersonalUnavailability(prev => {
+        nowIsUnavailable = prev.includes(dateStr);
+        return nowIsUnavailable ? prev.filter(d => d !== dateStr) : [...prev, dateStr];
       });
+
+      // API call (we use the captured nowIsUnavailable state)
+      try {
+        await fetch(`/api/availability/${currentUser.id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ date: dateStr, available: nowIsUnavailable })
+        });
+      } catch (e) {
+        console.error("API update failed", e);
+        // Fallback? Maybe re-fetch availability to be safe
+        fetchAvailability(currentUser.id);
+      }
     }
   };
 
@@ -301,9 +313,10 @@ export default function App() {
             <button
               type="button"
               onClick={() => {
-                setMode('personal'); // Changed to 'personal' to show the new login UI
+                setMode('personal');
                 setAdminPassword('');
                 setPasswordError(false);
+                window.location.reload(); // Hard reload to clear any cached admin data from memory
               }}
               className="w-full text-slate-400 hover:text-slate-600 text-sm font-medium py-2"
             >
@@ -429,12 +442,14 @@ export default function App() {
             >
               MY DATES
             </button>
-            <button
-              onClick={() => setMode('admin')}
-              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${mode === 'admin' ? 'bg-white shadow-sm text-amber-600' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-              TEAM VIEW
-            </button>
+            {mode === 'admin' && (
+              <button
+                onClick={() => setMode('admin')}
+                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all bg-white shadow-sm text-amber-600`}
+              >
+                TEAM VIEW
+              </button>
+            )}
           </div>
 
           {currentUser && (
@@ -592,7 +607,10 @@ export default function App() {
                     {(['month', 'day'] as const).map(v => (
                       <button
                         key={v}
-                        onClick={() => setViewType(v)}
+                        onClick={() => {
+                          setViewType(v);
+                          setShowMobileSettings(false);
+                        }}
                         className={`flex-1 font-bold py-3 rounded-xl transition-all ${viewType === v
                           ? 'bg-white shadow-sm text-indigo-600'
                           : 'text-slate-400'
