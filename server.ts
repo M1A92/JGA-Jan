@@ -22,7 +22,7 @@ function ensureDb() {
 app.get("/api/people", async (req, res) => {
   try {
     await ensureDb();
-    const { rows } = await sql`SELECT * FROM people`;
+    const rows = await sql("SELECT * FROM people");
     res.json(rows);
   } catch (err) {
     console.error("API Error (/api/people):", err);
@@ -33,7 +33,7 @@ app.get("/api/people", async (req, res) => {
 app.get("/api/availability", async (req, res) => {
   try {
     await ensureDb();
-    const { rows } = await sql`SELECT * FROM availability`;
+    const rows = await sql("SELECT * FROM availability");
     const map: Record<string, string[]> = {};
     rows.forEach((row: any) => {
       if (!map[row.person_id]) map[row.person_id] = [];
@@ -50,8 +50,8 @@ app.get("/api/availability/:personId", async (req, res) => {
   try {
     await ensureDb();
     const { personId } = req.params;
-    const { rows } = await sql`SELECT date FROM availability WHERE person_id = ${personId}`;
-    res.json(rows.map(r => r.date));
+    const rows = await sql("SELECT date FROM availability WHERE person_id = $1", [personId]);
+    res.json(rows.map((r: any) => r.date));
   } catch (err) {
     console.error("API Error (/api/availability/:personId):", err);
     res.status(500).json({ error: "Failed to fetch personal availability" });
@@ -65,10 +65,10 @@ app.post("/api/availability/:personId", async (req, res) => {
     const { date, available } = req.body;
 
     if (available) {
-      await sql`DELETE FROM availability WHERE person_id = ${personId} AND date = ${date}`;
+      await sql("DELETE FROM availability WHERE person_id = $1 AND date = $2", [personId, date]);
     } else {
       try {
-        await sql`INSERT INTO availability (person_id, date) VALUES (${personId}, ${date}) ON CONFLICT DO NOTHING`;
+        await sql("INSERT INTO availability (person_id, date) VALUES ($1, $2) ON CONFLICT DO NOTHING", [personId, date]);
       } catch (e) {
         // Ignore
       }
@@ -86,9 +86,8 @@ app.get("/api/health", (req, res) => {
 
 // For Vercel, we need to export the app but also handle local dev
 async function startServer() {
-  await initDb();
-
   if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
+    // Local dev setup
     const PORT = 3000;
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -104,7 +103,7 @@ async function startServer() {
   }
 }
 
-// Ensure DB is initialized
+// Start server
 startServer().catch(err => console.error("Server startup error:", err));
 
 export default app;
