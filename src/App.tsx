@@ -42,6 +42,7 @@ export default function App() {
     endMonth: 8
   });
 
+  const [viewType, setViewType] = useState<'month' | 'day'>('month');
   const [showMobileSettings, setShowMobileSettings] = useState(false);
 
   const [drag, setDrag] = useState<{ start: string | null; end: string | null }>({ start: null, end: null });
@@ -377,6 +378,24 @@ export default function App() {
           <section className="border-t border-slate-100 pt-6">
             <h3 className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-4">View Controls</h3>
             <div className="space-y-6">
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 mb-2">VIEW MODE</p>
+                <div className="flex bg-slate-100 p-1 rounded-lg">
+                  {(['month', 'day'] as const).map(v => (
+                    <button
+                      key={v}
+                      onClick={() => setViewType(v)}
+                      className={`flex-1 text-[10px] font-bold py-1.5 rounded-md transition-all ${viewType === v
+                        ? 'bg-white shadow-sm text-indigo-600'
+                        : 'text-slate-400 hover:text-slate-600'
+                        }`}
+                    >
+                      {v.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <label className="flex items-center gap-3 cursor-pointer group">
                 <input
                   type="checkbox"
@@ -448,6 +467,24 @@ export default function App() {
               </div>
 
               <div className="space-y-8 pb-8">
+                <div>
+                  <p className="text-xs font-black uppercase text-slate-400 tracking-widest mb-3">View Mode</p>
+                  <div className="flex bg-slate-100 p-1.5 rounded-2xl">
+                    {(['month', 'day'] as const).map(v => (
+                      <button
+                        key={v}
+                        onClick={() => setViewType(v)}
+                        className={`flex-1 font-bold py-3 rounded-xl transition-all ${viewType === v
+                          ? 'bg-white shadow-sm text-indigo-600'
+                          : 'text-slate-400'
+                          }`}
+                      >
+                        {v.toUpperCase()}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <label className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
                   <div>
                     <span className="font-bold text-slate-700 block text-base">Show Holidays</span>
@@ -513,129 +550,225 @@ export default function App() {
 
         {/* Main Calendar Area */}
         <main className="flex-1 bg-slate-50 p-4 sm:p-8 overflow-y-auto overflow-x-hidden">
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 max-w-7xl mx-auto pb-20">
-            {months.map(mDate => (
-              <div key={mDate.toISOString()} className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-                <div className="bg-slate-50/50 px-6 py-4 border-b border-slate-100 font-bold text-slate-800 text-lg">
-                  {format(mDate, 'MMMM yyyy')}
-                </div>
+          <div className="max-w-7xl mx-auto pb-20">
+            {viewType === 'month' ? (
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                {months.map(mDate => (
+                  <div key={mDate.toISOString()} className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+                    <div className="bg-slate-50/50 px-6 py-4 border-b border-slate-100 font-bold text-slate-800 text-lg">
+                      {format(mDate, 'MMMM yyyy')}
+                    </div>
 
-                <div className="grid grid-cols-7 text-[10px] font-black text-slate-400 uppercase tracking-wider text-center py-3 border-b border-slate-100 bg-white">
-                  {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => <div key={d}>{d}</div>)}
-                </div>
+                    <div className="grid grid-cols-7 text-[10px] font-black text-slate-400 uppercase tracking-wider text-center py-3 border-b border-slate-100 bg-white">
+                      {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => <div key={d}>{d}</div>)}
+                    </div>
 
-                <div className="grid grid-cols-7 auto-rows-fr">
-                  {/* Empty cells for start of month */}
-                  {Array.from({ length: (getDay(startOfMonth(mDate)) + 6) % 7 }).map((_, i) => (
-                    <div key={`empty-${i}`} className="min-h-[6rem] bg-slate-50/30 border-b border-r border-slate-50" />
-                  ))}
+                    <div className="grid grid-cols-7 auto-rows-fr">
+                      {/* Empty cells for start of month */}
+                      {Array.from({ length: (getDay(startOfMonth(mDate)) + 6) % 7 }).map((_, i) => (
+                        <div key={`empty-${i}`} className="min-h-[6rem] bg-slate-50/30 border-b border-r border-slate-50" />
+                      ))}
 
-                  {/* Days */}
-                  {eachDayOfInterval({ start: startOfMonth(mDate), end: endOfMonth(mDate) }).map(day => {
-                    const dStr = format(day, 'yyyy-MM-dd');
-                    const hols = viewConfig.showHolidays ? (holidays[dStr] || []) : [];
-                    const isWknd = isWeekend(day);
+                      {/* Days */}
+                      {eachDayOfInterval({ start: startOfMonth(mDate), end: endOfMonth(mDate) }).map(day => {
+                        const dStr = format(day, 'yyyy-MM-dd');
+                        const hols = viewConfig.showHolidays ? (holidays[dStr] || []) : [];
+                        const isWknd = isWeekend(day);
 
-                    // Logic differs based on mode
-                    let isUnavailable = false;
-                    let unavailablePeopleForDay: Person[] = [];
-                    let isConflict = false;
+                        // Logic differs based on mode
+                        let isUnavailable = false;
+                        let unavailablePeopleForDay: Person[] = [];
+                        let isConflict = false;
 
-                    if (mode === 'personal') {
-                      isUnavailable = personalUnavailability.includes(dStr);
-                    } else if (mode === 'admin') {
-                      unavailablePeopleForDay = people.filter(p => {
-                        const dates = allUnavailability[p.id] || [];
-                        return dates.includes(dStr);
-                      });
+                        if (mode === 'personal') {
+                          isUnavailable = personalUnavailability.includes(dStr);
+                        } else if (mode === 'admin') {
+                          unavailablePeopleForDay = people.filter(p => {
+                            const dates = allUnavailability[p.id] || [];
+                            return dates.includes(dStr);
+                          });
 
-                      isConflict = viewConfig.conflictMode === 'any'
-                        ? unavailablePeopleForDay.length > 0
-                        : viewConfig.conflictMode === 'all'
-                          ? unavailablePeopleForDay.length === people.length && people.length > 0
-                          : false;
-                    }
+                          isConflict = viewConfig.conflictMode === 'any'
+                            ? unavailablePeopleForDay.length > 0
+                            : viewConfig.conflictMode === 'all'
+                              ? unavailablePeopleForDay.length === people.length && people.length > 0
+                              : false;
+                        }
 
-                    const isSelected = drag.start && drag.end && dStr >= (drag.start < drag.end ? drag.start : drag.end) && dStr <= (drag.start < drag.end ? drag.end : drag.start);
+                        const isSelected = drag.start && drag.end && dStr >= (drag.start < drag.end ? drag.start : drag.end) && dStr <= (drag.start < drag.end ? drag.end : drag.start);
 
-                    return (
-                      <div
-                        key={dStr}
-                        onMouseDown={(e) => {
-                          if ('ontouchstart' in window) return; // Prevent drag on touch devices
-                          handleDragStart(dStr);
-                        }}
-                        onMouseEnter={() => {
-                          if ('ontouchstart' in window) return;
-                          handleDragEnter(dStr);
-                        }}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          toggleDate(dStr);
-                        }}
-                        className={`
-                          min-h-[6rem] p-2 border-b border-r border-slate-100 relative group transition-colors select-none
-                          ${isWknd ? 'bg-slate-50/50' : 'bg-white'}
-                          ${mode === 'personal' && (isUnavailable || isSelected) ? 'bg-red-50 ring-inset ring-red-100' : ''}
-                          ${mode === 'personal' && !isUnavailable && !isSelected ? 'hover:bg-slate-50 cursor-pointer' : ''}
-                          ${mode === 'personal' && isUnavailable ? 'cursor-pointer hover:bg-red-100' : ''}
-                          ${mode === 'admin' && isConflict ? 'bg-red-50' : ''}
-                        `}
-                      >
-                        <div className="flex justify-between items-start mb-1">
-                          <span className={`
-                            text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full
-                            ${format(day, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd') ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500'}
-                          `}>
-                            {format(day, 'd')}
-                          </span>
-                          {mode === 'admin' && isConflict && (
-                            <div className="w-2 h-2 rounded-full bg-red-500 shadow-sm animate-pulse" title="Conflict detected" />
-                          )}
-                        </div>
-
-                        {/* Holidays */}
-                        {hols.length > 0 && (
-                          <div className="mb-2 flex flex-wrap gap-1">
-                            {hols.map((h, i) => (
-                              <span key={i} className="text-[9px] leading-tight font-semibold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100 truncate max-w-full block" title={h}>
-                                {h}
+                        return (
+                          <div
+                            key={dStr}
+                            onMouseDown={(e) => {
+                              if ('ontouchstart' in window) return; // Prevent drag on touch devices
+                              handleDragStart(dStr);
+                            }}
+                            onMouseEnter={() => {
+                              if ('ontouchstart' in window) return;
+                              handleDragEnter(dStr);
+                            }}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              toggleDate(dStr);
+                            }}
+                            className={`
+                              min-h-[6rem] p-2 border-b border-r border-slate-100 relative group transition-colors select-none
+                              ${isWknd ? 'bg-slate-50/50' : 'bg-white'}
+                              ${mode === 'personal' && (isUnavailable || isSelected) ? 'bg-red-50 ring-inset ring-red-100' : ''}
+                              ${mode === 'personal' && !isUnavailable && !isSelected ? 'hover:bg-slate-50 cursor-pointer' : ''}
+                              ${mode === 'personal' && isUnavailable ? 'cursor-pointer hover:bg-red-100' : ''}
+                              ${mode === 'admin' && isConflict ? 'bg-red-50' : ''}
+                            `}
+                          >
+                            <div className="flex justify-between items-start mb-1">
+                              <span className={`
+                                text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full
+                                ${format(day, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd') ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500'}
+                              `}>
+                                {format(day, 'd')}
                               </span>
-                            ))}
-                          </div>
-                        )}
+                              {mode === 'admin' && isConflict && (
+                                <div className="w-2 h-2 rounded-full bg-red-500 shadow-sm animate-pulse" title="Conflict detected" />
+                              )}
+                            </div>
 
-                        {/* Personal Mode: Show "Unavailable" indicator */}
-                        {mode === 'personal' && (isUnavailable || isSelected) && (
-                          <div className="mt-2 flex justify-center">
-                            <div className="bg-red-100 text-red-600 text-[10px] font-bold px-2 py-1 rounded-md w-full text-center">
-                              Unavailable
+                            {/* Holidays */}
+                            {hols.length > 0 && (
+                              <div className="mb-2 flex flex-wrap gap-1">
+                                {hols.map((h, i) => (
+                                  <span key={i} className="text-[9px] leading-tight font-semibold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100 truncate max-w-full block" title={h}>
+                                    {h}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Personal Mode: Show "Unavailable" indicator */}
+                            {mode === 'personal' && (isUnavailable || isSelected) && (
+                              <div className="mt-2 flex justify-center">
+                                <div className="bg-red-100 text-red-600 text-[10px] font-bold px-2 py-1 rounded-md w-full text-center">
+                                  Unavailable
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Admin Mode: Show Avatars */}
+                            {mode === 'admin' && (
+                              <div className="flex flex-wrap content-start gap-1">
+                                {unavailablePeopleForDay.map(p => (
+                                  <div
+                                    key={p.id}
+                                    className="w-5 h-5 rounded-full shadow-sm ring-1 ring-white flex items-center justify-center text-[8px] font-bold text-white transition-transform hover:scale-110 hover:z-10"
+                                    style={{ backgroundColor: p.color }}
+                                    title={p.name}
+                                  >
+                                    {p.name.charAt(0)}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="max-w-3xl mx-auto space-y-12">
+                {months.map(mDate => (
+                  <div key={mDate.toISOString()}>
+                    <h2 className="text-xl font-black text-slate-800 mb-6 flex items-center gap-4">
+                      {format(mDate, 'MMMM yyyy')}
+                      <div className="h-px bg-slate-200 flex-1" />
+                    </h2>
+
+                    <div className="space-y-4">
+                      {eachDayOfInterval({ start: startOfMonth(mDate), end: endOfMonth(mDate) }).map(day => {
+                        const dStr = format(day, "yyyy-MM-dd");
+                        const hols = viewConfig.showHolidays ? (holidays[dStr] || []) : [];
+                        const isWknd = isWeekend(day);
+
+                        let isUnavailable = false;
+                        let unavailablePeopleForDay: Person[] = [];
+                        if (mode === 'personal') {
+                          isUnavailable = personalUnavailability.includes(dStr);
+                        } else if (mode === 'admin') {
+                          unavailablePeopleForDay = people.filter(p => (allUnavailability[p.id] || []).includes(dStr));
+                        }
+
+                        return (
+                          <div
+                            key={dStr}
+                            onClick={() => toggleDate(dStr)}
+                            className={`
+                              bg-white rounded-2xl border transition-all p-4 flex gap-4 items-center cursor-pointer select-none
+                              ${isUnavailable ? 'border-red-200 bg-red-50/30' : 'border-slate-100 hover:border-indigo-100 hover:bg-slate-50'}
+                              ${isWknd ? 'ring-1 ring-inset ring-slate-100 ring-offset-0 shadow-sm' : ''}
+                            `}
+                          >
+                            <div className="flex flex-col items-center justify-center w-14 shrink-0 border-r border-slate-100 pr-4">
+                              <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                                {format(day, 'EEE')}
+                              </span>
+                              <span className={`
+                                text-lg font-black
+                                ${format(day, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd') ? 'text-indigo-600' : 'text-slate-700'}
+                              `}>
+                                {format(day, 'd')}
+                              </span>
+                            </div>
+
+                            <div className="flex-1 flex flex-col gap-1">
+                              {hols.length > 0 && (
+                                <div className="flex flex-wrap gap-2">
+                                  {hols.map((h, i) => (
+                                    <div key={i} className="flex items-center gap-1.5 bg-amber-50 text-amber-700 px-2 py-0.5 rounded-lg border border-amber-100">
+                                      <span className="text-[10px] font-black">{h.toUpperCase()}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+
+                              <div className="flex items-center justify-between">
+                                <span className={`text-sm font-semibold ${isUnavailable ? 'text-red-700' : 'text-slate-500'}`}>
+                                  {isUnavailable ? 'Unavailable' : 'Available'}
+                                </span>
+
+                                {mode === 'admin' && unavailablePeopleForDay.length > 0 && (
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase mr-1">Unavailable:</span>
+                                    {unavailablePeopleForDay.map(p => (
+                                      <div key={p.id} className="flex items-center gap-1.5 bg-white border border-slate-100 rounded-full px-2 py-1 shadow-sm">
+                                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: p.color }} />
+                                        <span className="text-[10px] font-black text-slate-700">{p.name}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className={`
+                              w-12 h-12 rounded-xl flex items-center justify-center transition-all
+                              ${isUnavailable ? 'bg-red-100 text-red-600' : 'bg-slate-50 text-slate-300 group-hover:bg-indigo-50 group-hover:text-indigo-600'}
+                            `}>
+                              {isUnavailable ? (
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></svg>
+                              ) : (
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                              )}
                             </div>
                           </div>
-                        )}
-
-                        {/* Admin Mode: Show Avatars */}
-                        {mode === 'admin' && (
-                          <div className="flex flex-wrap content-start gap-1">
-                            {unavailablePeopleForDay.map(p => (
-                              <div
-                                key={p.id}
-                                className="w-5 h-5 rounded-full shadow-sm ring-1 ring-white flex items-center justify-center text-[8px] font-bold text-white transition-transform hover:scale-110 hover:z-10"
-                                style={{ backgroundColor: p.color }}
-                                title={p.name}
-                              >
-                                {p.name.charAt(0)}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
           </div>
         </main>
       </div>
