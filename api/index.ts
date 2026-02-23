@@ -74,6 +74,7 @@ app.get("/api/debug", async (req, res) => {
     try {
         const hasDbUrl = !!(process.env.DATABASE_URL || process.env.POSTGRES_URL);
         let dbStatus = "Unknown";
+        let errorDetail = null;
         let tables = [];
         let peopleCount = 0;
 
@@ -83,20 +84,47 @@ app.get("/api/debug", async (req, res) => {
                 dbStatus = "Connected";
                 const rows = await sql("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'");
                 tables = rows.map((r: any) => r.table_name);
-                const peopleRows = await sql("SELECT count(*) as count FROM people");
-                peopleCount = parseInt(peopleRows[0]?.count || "0");
+                if (tables.includes('people')) {
+                    const peopleRows = await sql("SELECT count(*) as count FROM people");
+                    peopleCount = parseInt(peopleRows[0]?.count || "0");
+                }
             } catch (e: any) {
-                dbStatus = `Error: ${e.message}`;
+                dbStatus = "Failed";
+                errorDetail = {
+                    message: e.message,
+                    stack: e.stack,
+                    code: e.code
+                };
             }
         }
 
         res.json({
-            env: { hasDbUrl, isVercel: !!process.env.VERCEL },
-            db: { status: dbStatus, tables, peopleCount }
+            timestamp: new Date().toISOString(),
+            env: {
+                hasDbUrl,
+                isVercel: !!process.env.VERCEL,
+                nodeVersion: process.version
+            },
+            db: {
+                status: dbStatus,
+                error: errorDetail,
+                tables,
+                peopleCount
+            }
         });
     } catch (err: any) {
-        res.status(500).json({ error: err.message });
+        res.status(500).json({ error: err.message, stack: err.stack });
     }
+});
+
+// Final Error Handler
+app.use((err: any, req: any, res: any, next: any) => {
+    console.error("Unhandle Error:", err);
+    res.status(500).json({
+        error: "Internal Server Error",
+        message: err.message,
+        stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    });
 });
 
 app.get("/api/health", (req, res) => res.json({ status: "ok" }));

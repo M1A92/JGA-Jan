@@ -14,7 +14,8 @@ const getSql = () => {
 };
 
 const sql = (query: string, params?: any[]) => {
-  return getSql()(query, params);
+  const client = getSql();
+  return params ? client(query, params) : client(query);
 };
 
 export async function initDb() {
