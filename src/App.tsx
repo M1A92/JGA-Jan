@@ -143,20 +143,20 @@ export default function App() {
       }
       lastToggle.current = { date: dateStr, time: Date.now() };
 
-      let nowIsUnavailable = false;
+      const isUnavailable = personalUnavailability.includes(dateStr);
 
-      // Use functional update to get absolute latest state and prevent race conditions
+      // Optimistic upate based on current exact state
       setPersonalUnavailability(prev => {
-        nowIsUnavailable = prev.includes(dateStr);
-        return nowIsUnavailable ? prev.filter(d => d !== dateStr) : [...prev, dateStr];
+        const currentlyUnavailable = prev.includes(dateStr);
+        return currentlyUnavailable ? prev.filter(d => d !== dateStr) : [...prev, dateStr];
       });
 
-      // API call (we use the captured nowIsUnavailable state)
+      // API call (use the direct variable)
       try {
         await fetch(`/api/availability/${currentUser.id}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ date: dateStr, available: nowIsUnavailable })
+          body: JSON.stringify({ date: dateStr, available: isUnavailable })
         });
       } catch (e) {
         console.error("API update failed", e);
